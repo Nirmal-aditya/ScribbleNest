@@ -1,35 +1,38 @@
-const express = require('express');
-const app = express();
-const path = require('path');
+const express = require('express')
+const app = express()
+const port = 3000;
+const path=require('path')
+const userModel=require('./models/user');
 const cookieParser = require('cookie-parser');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-const userModel = require('./models/user');
-const postModel = require('./models/post');
-const multerconfig = require("./config/multerconfig");
+const bcrypt=require('bcrypt')
+const jwt=require('jsonwebtoken')
+const postModel=require('./models/post')
+const crypto = require('crypto');
+const multerconfig=require("./config/multerconfig");
 const upload = require('./config/multerconfig');
 
-const port = process.env.PORT || 3000;
+app.set("view engine","ejs")
+app.use(express.static(path.join(__dirname, 'public')))
 
-app.set("view engine", "ejs");
-app.set('views', path.join(__dirname, '../views'));
+app.use(express.json())
+app.use(express.urlencoded({extended : true}))
+app.use(cookieParser())
 
-app.use(express.static(path.join(__dirname, '../public')));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
 
-app.get('/', (req, res) => {
-  res.render("index");
-});
 
-app.get('/profile/upload', (req, res) => {
+app.get('/',(req,res)=>{
+  res.render("index")
+})
+
+
+app.get('/profile/upload',(req,res)=>{
   res.render("profileupload");
-});
+})
 
 app.post('/upload', isLoggedIn, upload.single("image"), async (req, res) => {
   try {
     const user = await userModel.findOne({ email: req.user.email });
+
     if (req.file) {
       user.profilepic = req.file.filename; 
       await user.save();
@@ -43,40 +46,49 @@ app.post('/upload', isLoggedIn, upload.single("image"), async (req, res) => {
   }
 });
 
-app.post('/register', async (req, res) => {
-  let { email, password, username, name, age } = req.body;
-  let user = await userModel.findOne({ email });
-  if (user) return res.status(500).send("User Already Registered");
 
-  bcrypt.genSalt(10, (err, salt) => {
-    bcrypt.hash(password, salt, async (err, hash) => {
-      let user = await userModel.create({
+
+
+app.post('/register', async (req,res)=>{
+  let {email,password,username,name,age} =req.body;
+
+  let user=await userModel.findOne({email})
+  if(user) return res.status(500).send("User Already Registered")
+
+   bcrypt.genSalt(10,(err,salt)=>{
+    bcrypt.hash(password,salt, async (err,hash)=>{
+      let user= await userModel.create({
         username,
         email,
         age,
         name,
-        password: hash
+        password:hash
       });
-      let token = jwt.sign({ email: email, userid: user._id }, "shhh");
-      res.cookie('token', token);
-      res.redirect('/login');
-    });
-  });
-});
+      let token = jwt.sign({email:email,userid : user._id}, "shhh")
+      res.cookie('token',token)
+      res.send("Registered")
+    }) 
+})
+})
 
-app.post('/login', async (req, res) => {
-  let { email, password } = req.body;
-  let user = await userModel.findOne({ email });
-  if (!user) return res.status(500).send("Something Went Wrong");
+app.post('/login', async (req,res)=>{
+  let {email,password} =req.body;
 
-  bcrypt.compare(password, user.password, function (err, result) {
-    if (result) {
-      let token = jwt.sign({ email: email, userid: user._id }, "shhh");
-      res.cookie('token', token);
-      return res.status(200).redirect("profile");
-    } else res.redirect('/login');
-  });
-});
+  let user=await userModel.findOne({email})
+  if(!user) return res.status(500).send("Something Went Wrong")
+
+    bcrypt.compare(password,user.password,function (err,result){
+      if(result)
+        {
+          let token = jwt.sign({email:email,userid : user._id}, "shhh")
+          res.cookie('token',token)
+          return res.status(200).redirect("profile")
+         
+        }
+      else res.redirect('/login')
+    })
+
+})
 
 app.get('/profile', isLoggedIn, async (req, res) => {
   const user = await userModel.findOne({ email: req.user.email }).populate('posts');
@@ -87,23 +99,27 @@ app.get('/profile', isLoggedIn, async (req, res) => {
 });
 
 app.get('/like/:id', isLoggedIn, async (req, res) => {
-  let post = await postModel.findOne({ _id: req.params.id }).populate("user");
-  if (post.likes.indexOf(req.user.userid) === -1) {
-    post.likes.push(req.user.userid);
-  } else {
-    post.likes.splice(post.likes.indexOf(req.user.userid), 1);
+
+  let post =await postModel.findOne({_id: req.params.id}).populate("user");
+  if(post.likes.indexOf(req.user.userid)===-1){
+  post.likes.push(req.user.userid);
   }
+  else{
+    post.likes.splice(post.likes.indexOf(req.user.userid),1);
+  }
+ 
   await post.save();
   res.redirect('/profile');
 });
 
 app.get('/edit/:id', isLoggedIn, async (req, res) => {
-  let post = await postModel.findOne({ _id: req.params.id }).populate("user");
-  res.render("edit", { post });
+
+  let post =await postModel.findOne({_id: req.params.id}).populate("user");
+  res.render("edit",{post});
 });
 
 app.post('/update/:id', isLoggedIn, async (req, res) => {
-  await postModel.findOneAndUpdate({ _id: req.params.id }, { content: req.body.content });
+  let post = await postModel.findOneAndUpdate({_id: req.params.id}, {content: req.body.content});
   const user = await userModel.findOne({ email: req.user.email }).populate('posts');
   res.render('profile', { user });
 });
@@ -118,6 +134,7 @@ app.post('/delete/:id', isLoggedIn, async (req, res) => {
     }
 
     await userModel.updateOne({ _id: post.user }, { $pull: { posts: postId } });
+
     res.redirect('/profile');
   } catch (error) {
     console.error(error);
@@ -125,50 +142,47 @@ app.post('/delete/:id', isLoggedIn, async (req, res) => {
   }
 });
 
-app.post('/post', isLoggedIn, async (req, res) => {
-  let user = await userModel.findOne({ email: req.user.email });
-  let { content } = req.body;
-  let post = await postModel.create({
+
+
+app.post('/post',isLoggedIn, async (req,res)=>{
+  let user = await userModel.findOne({email : req.user.email });
+  let { content } =req.body;
+  let post =await postModel.create({
     user: user._id,
     content
   });
-  user.posts.push(post._id);
+  user.posts.push(post._id)
   await user.save();
-  res.redirect("/profile");
-});
+  res.redirect("/profile")
+  })
 
-app.get('/login', (req, res) => {
-  res.render("login");
-});
+app.get('/login',(req,res)=>{
+  res.render("login")
+})
 
-app.get('/logout', (req, res) => {
-  res.cookie("token", "");
-  res.redirect('/login');
-});
+app.get('/logout',(req,res)=>{
+  res.cookie("token","")
+  res.redirect('/login')
+})
 
 function isLoggedIn(req, res, next) {
   const token = req.cookies.token;
 
   if (!token) {
-    return res.redirect('/login');
+    return res.redirect('/login'); // No token found, redirect to login
   }
 
   try {
     const data = jwt.verify(token, "shhh");
-    req.user = data;
-    next();
+    req.user = data; // Save the decoded token data to `req.user`
+    next(); // Token is valid, proceed to the next middleware or route
   } catch (err) {
     console.error("Token verification error:", err);
-    res.redirect('/login');
+    res.redirect('/login'); // Token invalid or expired, redirect to login
   }
 }
 
-module.exports = (req, res) => {
-  app(req, res);
-};
 
-if (require.main === module) {
-  app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
-  });
-}
+app.listen(port ,()=>{
+  console.log("Working on port 3K")
+})
