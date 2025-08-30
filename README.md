@@ -21,21 +21,17 @@
 | Authentication  | Secure Session-based auth            |
 
 ---
-Step 1: Clone the repo
 git clone https://github.com/Nirmal-aditya/ScribbleNest.git
 
-Step 2: Navigate into project directory
-cd ScribbleNest
+Navigate into project directory: cd ScribbleNest
 
-Step 3: Install dependencies
-npm install
+Install dependencies: npm install
 
-Step 4: Configure environment variables (create .env file)
+Configure environment variables (create .env file):
 cp .env.example .env
-
 Update DB connection string and session secrets in .env
-Step 5: Start the application
-npm start
+
+Start the application: npm start
 
 ---
 
