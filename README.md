@@ -21,6 +21,9 @@
 | Authentication  | Secure Session-based auth            |
 
 ---
+
+## ⚙️ Setup & Installation Guide
+
 git clone https://github.com/Nirmal-aditya/ScribbleNest.git
 
 Navigate into project directory: cd ScribbleNest
@@ -60,4 +63,3 @@ Reach out for collaboration or questions:
 
 ---
 
-## ⚙️ Setup & Installation Guide
